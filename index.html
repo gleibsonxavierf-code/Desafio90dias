@@ -40,6 +40,7 @@ svg{width:100%;height:auto;display:block}svg text{font-size:8px;fill:var(--m)}.f
 .menu{display:grid;grid-template-columns:1fr 1fr;gap:10px}.menu button{min-height:76px;flex-direction:column;display:flex;align-items:center;justify-content:center;background:var(--c);border:1px solid var(--l);color:var(--t)}
 .tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1}.tabs .on{background:var(--g);color:#fff}
 textarea.big{min-height:120px}
+.nt{margin:-2px 0 12px;min-height:44px;font-size:14px}
 </style></head><body>
 <header><h1>Projeto Reconstrução 90D</h1><small id="sub"></small></header>
 <main id="app"></main>
@@ -63,10 +64,10 @@ var COLS=["fin","sau","neg","dis","fam","met","rev"];
 function def(){var t=today(),T=function(n){return {id:uid(),n:n,c:"0000-00-00",a:""}};
  return {v:1,g:{start:t,dias:90,peso0:100,pesoMeta:0,reserva:10000,anual:1000000,grupos:1,op:false,telaBase:"3 a 5 h/dia"},
  tasks:["Beber 3 litros de água","Treino do dia","Alimentação dentro do plano","Dormir 7 horas ou mais","Redes sociais abaixo de 2 h","Ler 20 minutos","Oração ou reflexão","Tempo de qualidade com a família","Trabalhar no grupo de ofertas","Registrar finanças do dia"].map(T),
- chk:{},fin:[],sau:[],neg:[],dis:[],fam:[],met:[],rev:[],ui:{}}}
+ chk:{},notes:{},trn:[],mig:{},fin:[],sau:[],neg:[],dis:[],fam:[],met:[],rev:[],ui:{}}}
 var S,E={},ok=true;
 function load(){try{var r=localStorage.getItem(K);S=r?JSON.parse(r):def()}catch(e){S=def();ok=false}
- var d=def();for(var k in d)if(S[k]==null)S[k]=d[k];for(var k2 in d.g)if(S.g[k2]==null)S.g[k2]=d.g[k2]}
+ var d=def();for(var k in d)if(S[k]==null)S[k]=d[k];for(var k2 in d.g)if(S.g[k2]==null)S.g[k2]=d.g[k2];migrate(S)}
 function save(){try{S.u=Date.now();localStorage.setItem(K,JSON.stringify(S));schedPush();return true}catch(e){toast("Não foi possível salvar neste navegador. Faça um backup agora.");return false}}
 function toast(m){var t=$("#toast");t.textContent=m;t.className="on";clearTimeout(toast.h);toast.h=setTimeout(function(){t.className=""},2600)}
 /* ---------- módulos genéricos ---------- */
@@ -135,14 +136,14 @@ function vHome(){var g=S.g,n=dayN(),left=Math.max(0,g.dias-n+1),tp=Math.min(100,
 function vHoje(){var d=S.ui.d||today(),ts=dayTasks(d),c=S.chk[d]||[],p=pct(d),isT=d==today();
  var o='<div class="row" style="margin-bottom:10px"><button data-dd="-1" aria-label="Dia anterior" style="flex:0 0 56px">‹</button><input type="date" id="dt" value="'+d+'" style="margin:0"><button data-dd="1" aria-label="Próximo dia" style="flex:0 0 56px">›</button></div>';
  o+='<div class="card"><b>'+(isT?"Hoje":brd(d))+" · "+(p==null?0:p)+'% concluído</b>'+bar(p||0)+"<small>"+ts.filter(function(t){return c.indexOf(t.id)>=0}).length+" de "+ts.length+" tarefas</small></div>";
- o+=ts.map(function(t){var on=c.indexOf(t.id)>=0;return '<button class="tk'+(on?" on":"")+'" data-chk="'+t.id+'"><span>'+(on?"✅":"⬜")+"</span>"+esc(t.n)+"</button>"}).join("")||'<p class="m">Nenhuma tarefa neste dia.</p>';
- o+='<details class="card"><summary><b>Gerenciar tarefas</b></summary><p class="m">Alterar ou arquivar tarefas não apaga o histórico dos dias anteriores.</p>'+S.tasks.filter(function(t){return !t.a}).map(function(t){return '<div class="it"><input data-tn="'+t.id+'" value="'+esc(t.n)+'" style="margin:0"><button data-ta="'+t.id+'" aria-label="Arquivar tarefa">📦</button></div>'}).join("")+'<form data-f="task" class="row" style="margin-top:10px"><input name="n" placeholder="Nova tarefa" style="margin:0"><button class="pri" style="flex:0 0 auto">Adicionar</button></form></details>';
+ o+=ts.map(function(t){var on=c.indexOf(t.id)>=0;return '<button class="tk'+(on?" on":"")+'" data-chk="'+t.id+'"><span>'+(on?"✅":"⬜")+"</span>"+esc(t.n)+"</button>"+noteHTML(t,d)}).join("")||'<p class="m">Nenhuma tarefa neste dia.</p>';
+ o+='<details class="card"><summary><b>Gerenciar tarefas</b></summary><p class="m">Alterar ou arquivar tarefas não apaga o histórico dos dias anteriores.</p>'+S.tasks.filter(function(t){return !t.a}).map(function(t){return '<div class="it"><input data-tn="'+t.id+'" value="'+esc(t.n)+'" style="margin:0"><button data-ta="'+t.id+'" aria-label="Arquivar tarefa">📦</button></div>'}).join("")+'<form data-f="task" class="row" style="margin-top:10px"><input name="n" placeholder="Nova tarefa" style="margin:0"><button class="pri" style="flex:0 0 auto">Adicionar</button></form></details>'+notesHist();
  return o}
 function vFin(){var t=today(),ym=t.slice(0,7),m=fin(ym+"-01",ym+"-31"),res=sum(S.fin.filter(function(r){return r.k=="Reserva"}),function(r){return r.v}),all=fin("0000","9999"),rp=S.g.reserva>0?Math.round(res/S.g.reserva*100):0;
  return '<div class="grid">'+tile(fmt(m.rec),"Receitas do mês")+tile(fmt(m.des),"Despesas do mês")+tile(fmt(m.rec-m.des),"Sobra do mês")+tile(fmt(m.par),"Parcelas do mês")+"</div>"+
  '<div class="card"><h3>Reserva</h3><b style="font-size:22px;color:var(--g)">'+fmt(res)+"</b> <small>de "+fmt(S.g.reserva)+" ("+rp+"%)</small>"+bar(rp)+'<small>Use o tipo “Reserva” para registrar valores guardados. Cartões: registre cada compra ou a fatura como “Cartão”.</small></div>'+formHTML("fin")+listHTML("fin")}
-function vSau(){var ps=pesos(),pa=ps.length?ps[ps.length-1].v:S.g.peso0,t=today(),a=addD(t,-6),tr=S.sau.filter(function(r){return r.k=="Treino"&&inRange(r,a,t)}).length;
- return '<div class="grid">'+tile(f1(S.g.peso0)+" kg","Peso inicial")+tile(f1(pa)+" kg","Peso atual")+tile((pa-S.g.peso0>0?"+":"")+f1(pa-S.g.peso0)+" kg","Variação")+tile(tr,"Treinos em 7 dias")+"</div>"+
+function vSau(){var ps=pesos(),pa=ps.length?ps[ps.length-1].v:S.g.peso0,t=today(),a=addD(t,-6),tr=trCount(a,t);
+ return '<button class="pri" data-nav="treinos" style="width:100%;margin-bottom:12px">📒 Diário de treino ('+S.trn.length+" registros)</button><div class=\"grid\">'+tile(f1(S.g.peso0)+' kg',"Peso inicial")+tile(f1(pa)+" kg","Peso atual")+tile((pa-S.g.peso0>0?"+":"")+f1(pa-S.g.peso0)+" kg","Variação")+tile(tr,"Treinos em 7 dias")+"</div>"+
  '<div class="card"><h3>Evolução do peso</h3>'+chart(ps.slice(-30).map(function(r){return {l:lab(r.d),v:r.v}}),"l")+"</div>"+formHTML("sau")+listHTML("sau")}
 function vNeg(){var s=sum(S.neg,function(r){return r.s}),c=sum(S.neg,function(r){return r.c}),cv=sum(S.neg,function(r){return r.cv}),pt=S.neg.length?S.neg.slice().sort(function(a,b){return b.d.localeCompare(a.d)})[0].p:0;
  return '<div class="grid">'+tile(S.g.grupos+(S.g.op?" ativo(s)":" (não operacional)"),"Grupos no WhatsApp")+tile(f1(pt),"Participantes (último reg.)")+tile(fmt(s),"Vendas")+tile(fmt(c),"Comissões")+tile(f1(cv),"Conversões")+tile(S.g.anual>0?(s/S.g.anual*100).toFixed(2).replace(".",",")+"%":"–","Da meta anual")+"</div>"+formHTML("neg")+listHTML("neg")}
@@ -154,22 +155,22 @@ function vRep(){var n=S.ui.rp||7,ds=lastDays(n),a=ds[0],b=ds[n-1],f=fin(a,b),pc=
  ds2=R("dis"),tl=ds2.filter(function(r){return r.t!==""}).map(function(r){return r.t}),sn=ds2.filter(function(r){return r.s!==""}).map(function(r){return r.s}),
  ps=pesos().filter(function(r){return r.d<=b});
  var o='<div class="tabs"><button data-rp="7" class="'+(n==7?"on":"")+'">Semanal</button><button data-rp="30" class="'+(n==30?"on":"")+'">Mensal</button></div>';
- o+='<div class="grid">'+tile(pc.length?Math.round(avg(pc))+"%":"–","Checklist (média)")+tile(R("sau").filter(function(r){return r.k=="Treino"}).length,"Treinos")+tile(fmt(f.rec-f.des),"Sobra do período")+tile(fmt(f.res),"Guardado na reserva")+tile(tl.length?f1(avg(tl))+" h":"–","Tela (média/dia)")+tile(sn.length?f1(avg(sn))+" h":"–","Sono (média)")+tile(fmt(sum(R("neg"),function(r){return r.s})),"Vendas")+tile(fmt(sum(R("neg"),function(r){return r.c})),"Comissões")+"</div>";
+ o+='<div class="grid">'+tile(pc.length?Math.round(avg(pc))+"%":"–","Checklist (média)")+tile(trCount(a,b),"Treinos")+tile(fmt(f.rec-f.des),"Sobra do período")+tile(fmt(f.res),"Guardado na reserva")+tile(tl.length?f1(avg(tl))+" h":"–","Tela (média/dia)")+tile(sn.length?f1(avg(sn))+" h":"–","Sono (média)")+tile(fmt(sum(R("neg"),function(r){return r.s})),"Vendas")+tile(fmt(sum(R("neg"),function(r){return r.c})),"Comissões")+"</div>";
  o+='<div class="card"><h3>Checklist por dia (%)</h3>'+chart(ds.map(function(d){return {l:lab(d),v:pct(d)||0}}),"b")+'</div><div class="card"><h3>Receitas × despesas</h3>'+chart([{l:"Rec.",v:f.rec},{l:"Desp.",v:f.des}],"b")+'</div><div class="card"><h3>Peso</h3>'+chart(ps.slice(-30).map(function(r){return {l:lab(r.d),v:r.v}}),"l")+'</div><div class="card"><h3>Tempo de tela (h)</h3>'+chart(ds2.filter(function(r){return r.t!==""}).sort(function(x,y){return x.d.localeCompare(y.d)}).map(function(r){return {l:lab(r.d),v:r.t}}),"b","o")+"</div>";
  return o}
 function vRev(){var ds=lastDays(7),pc=pcts(ds),f=fin(ds[0],ds[6]);
- return '<div class="card"><h3>Resumo dos últimos 7 dias</h3><small>Checklist médio: '+(pc.length?Math.round(avg(pc))+"%":"–")+" · Sobra: "+fmt(f.rec-f.des)+" · Treinos: "+S.sau.filter(function(r){return r.k=="Treino"&&inRange(r,ds[0],ds[6])}).length+"</small></div>"+formHTML("rev")+listHTML("rev",20)}
+ return '<div class="card"><h3>Resumo dos últimos 7 dias</h3><small>Checklist médio: '+(pc.length?Math.round(avg(pc))+"%":"–")+" · Sobra: "+fmt(f.rec-f.des)+" · Treinos: "+trCount(ds[0],ds[6])+"</small></div>"+formHTML("rev")+listHTML("rev",20)}
 function vCfg(){var g=S.g,F=function(k,l,t){return "<label>"+l+'<input name="'+k+'" '+(t=="date"?'type="date"':'inputmode="decimal"')+' value="'+esc(g[k])+'"></label>'};
  return '<form class="card" data-f="cfg"><h3>Ajustes do projeto</h3>'+F("start","Data de início","date")+F("dias","Duração (dias)")+F("peso0","Peso inicial (kg)")+F("pesoMeta","Meta de peso (kg) — 0 = não definida")+F("reserva","Meta de reserva (R$)")+F("anual","Meta anual de vendas (R$)")+F("grupos","Nº de grupos no WhatsApp")+'<label>Grupos operacionais?<select name="op"><option value="0"'+(g.op?"":" selected")+'>Ainda não</option><option value="1"'+(g.op?" selected":"")+'>Sim</option></select></label><label>Redes sociais no início<input name="telaBase" value="'+esc(g.telaBase)+'"></label><button class="pri" style="width:100%">Salvar ajustes</button></form>'+
  syncCard()+'<div class="card"><h3>Backup</h3><p class="m">Os dados ficam salvos neste aparelho e navegador. Limpar os dados do navegador apaga tudo, então exporte um backup toda semana.</p><div class="row"><button class="pri" data-act="exp">Exportar backup</button><button data-act="cp">Copiar dados</button></div><label style="margin-top:12px">Restaurar de um arquivo de backup<input type="file" id="fimp" accept=".json,application/json"></label><label>Ou cole o conteúdo do backup<textarea id="imp" class="big" placeholder="Cole aqui o JSON do backup"></textarea></label><div class="row"><button data-act="imp">Restaurar dados</button><button data-act="prev">Desfazer restauração</button><button class="dn" data-act="rst">Apagar tudo</button></div></div>'}
-function vMais(){var M=[["negocio","💬","Negócio digital"],["disciplina","⏱️","Disciplina"],["familia","🙏","Família e espiritualidade"],["metas","🎯","Metas"],["relatorios","📊","Relatórios"],["revisao","📝","Revisão semanal"],["ajustes","⚙️","Ajustes e backup"]];
+function vMais(){var M=[["negocio","💬","Negócio digital"],["disciplina","⏱️","Disciplina"],["familia","🙏","Família e espiritualidade"],["metas","🎯","Metas"],["relatorios","📊","Relatórios"],["revisao","📝","Revisão semanal"],["treinos","📒","Diário de treino"],["ajustes","⚙️","Ajustes e backup"]];
  return '<div class="menu">'+M.map(function(m){return '<button data-nav="'+m[0]+'"><span style="font-size:24px">'+m[1]+"</span>"+m[2]+"</button>"}).join("")+"</div>"}
-var ROUTES={inicio:["Início",vHome],hoje:["Checklist diário",vHoje],financas:["Finanças",vFin],saude:["Saúde",vSau],mais:["Mais",vMais],negocio:["Negócio digital",vNeg],disciplina:["Disciplina",vDis],familia:["Família e espiritualidade",vFam],metas:["Metas",vMet],relatorios:["Relatórios",vRep],revisao:["Revisão semanal",vRev],ajustes:["Ajustes e backup",vCfg]};
+var ROUTES={inicio:["Início",vHome],hoje:["Checklist diário",vHoje],financas:["Finanças",vFin],saude:["Saúde",vSau],mais:["Mais",vMais],negocio:["Negócio digital",vNeg],disciplina:["Disciplina",vDis],familia:["Família e espiritualidade",vFam],metas:["Metas",vMet],relatorios:["Relatórios",vRep],revisao:["Revisão semanal",vRev],ajustes:["Ajustes e backup",vCfg],treinos:["Diário de treino",vTrn]};
 var TABS=[["inicio","🏠","Início"],["hoje","✅","Hoje"],["financas","💰","Finanças"],["saude","💪","Saúde"],["mais","☰","Mais"]];
 function route(){var h=(location.hash||"").slice(1);return ROUTES[h]?h:"inicio"}
 function render(keep){var r=route(),y=window.scrollY,app=$("#app");
- app.innerHTML=(["negocio","disciplina","familia","metas","relatorios","revisao","ajustes"].indexOf(r)>=0?'<button data-nav="mais" style="margin-bottom:10px">‹ Voltar</button>':"")+"<h2>"+ROUTES[r][0]+"</h2>"+ROUTES[r][1]();
- var tab=["negocio","disciplina","familia","metas","relatorios","revisao","ajustes"].indexOf(r)>=0?"mais":r;
+ app.innerHTML=(["negocio","disciplina","familia","metas","relatorios","revisao","ajustes","treinos"].indexOf(r)>=0?'<button data-nav="'+(r=="treinos"?"saude":"mais")+'" style="margin-bottom:10px">‹ Voltar</button>':"")+"<h2>"+ROUTES[r][0]+"</h2>"+ROUTES[r][1]();
+ var tab=["negocio","disciplina","familia","metas","relatorios","revisao","ajustes","treinos"].indexOf(r)>=0?(r=="treinos"?"saude":"mais"):r;
  $("#nav").innerHTML=TABS.map(function(t){return '<button data-nav="'+t[0]+'" class="'+(t[0]==tab?"on":"")+'"><span>'+t[1]+"</span>"+t[2]+"</button>"}).join("");
  var n=dayN();$("#sub").textContent="Dia "+Math.min(n,S.g.dias)+" de "+S.g.dias+" · "+brd(today());
  if(keep)window.scrollTo(0,y);else window.scrollTo(0,0)}
@@ -187,10 +188,18 @@ document.addEventListener("click",function(ev){var b=ev.target.closest("button")
  if(d.chk){var t=S.ui.d||today(),c=S.chk[t]||(S.chk[t]=[]),i=c.indexOf(d.chk);if(i>=0)c.splice(i,1);else c.push(d.chk);save();render(1);return}
  if(d.dd){S.ui.d=addD(S.ui.d||today(),+d.dd);render(1);return}
  if(d.ta){var tk=S.tasks.filter(function(t){return t.id==d.ta})[0];if(tk){tk.a=today();save();render(1);toast("Tarefa arquivada. O histórico foi mantido.")}return}
+ if(d.gd){S.ui.d=d.gd;render();return}
  if(d.rp){S.ui.rp=+d.rp;render(1);return}
  if(d.e){var p=d.e.split(":");E[p[0]]=p[1];render(1);window.scrollTo(0,0);return}
  if(d.x){var q=d.x.split(":");if(confirm("Excluir este registro?")){S[q[0]]=S[q[0]].filter(function(r){return r.id!=q[1]});save();render(1)}return}
  if(d.c){E[d.c]=null;render(1);return}
+ if(d.tg){var gi=T.gm.indexOf(d.tg);if(gi>=0)T.gm.splice(gi,1);else T.gm.push(d.tg);render(1);return}
+ if(d.ta2){T.ex.push({n:"",s:"",r:"",c:""});render(1);return}
+ if(d.tr!==undefined){T.ex.splice(+d.tr,1);render(1);return}
+ if(d.tsave){saveT();return}
+ if(d.tcan){T=null;render(1);return}
+ if(d.te){var tr0=S.trn.filter(function(r){return r.id==d.te})[0];if(tr0){T=JSON.parse(JSON.stringify(tr0));delete T.h;if(!T.ex.length)T.ex=[{n:"",s:"",r:"",c:""}];render(1);window.scrollTo(0,0)}return}
+ if(d.tx){if(confirm("Excluir este treino?")){S.trn=S.trn.filter(function(r){return r.id!=d.tx});save();render(1)}return}
  if(d.act)act(d.act);if(d.sy)sy(d.sy)});
 document.addEventListener("submit",function(ev){var f=ev.target,k=f.dataset.f;if(!k)return;ev.preventDefault();var o={},fd=new FormData(f);fd.forEach(function(v,n){o[n]=v});
  if(k=="task"){var n=String(o.n||"").trim();if(!n){toast("Digite o nome da tarefa.");return}S.tasks.push({id:uid(),n:n,c:today(),a:""});save();render(1);return}
@@ -201,7 +210,7 @@ document.addEventListener("change",function(ev){var t=ev.target;
  if(t.id=="dt"&&t.value){S.ui.d=t.value;render(1)}
  if(t.dataset&&t.dataset.tn){var tk=S.tasks.filter(function(x){return x.id==t.dataset.tn})[0],v=t.value.trim();if(tk&&v){tk.n=v;save();toast("Tarefa atualizada")}}});
 /* ---------- importação, normalização e sincronização (Supabase) ---------- */
-function norm(o){var d=def();for(var k in d)if(o[k]==null)o[k]=d[k];for(var k2 in d.g)if(o.g[k2]==null)o.g[k2]=d.g[k2];return o}
+function norm(o){var d=def();for(var k in d)if(o[k]==null)o[k]=d[k];for(var k2 in d.g)if(o.g[k2]==null)o.g[k2]=d.g[k2];return migrate(o)}
 function keepPrev(){try{localStorage.setItem("rec90d.prev",JSON.stringify(S))}catch(e){}}
 function hasData(){return COLS.some(function(k){return S[k].length})||Object.keys(S.chk).length>0}
 function importJSON(txt){try{var o=JSON.parse(txt);if(!o||o.v!==1||!o.g||!Array.isArray(o.tasks))throw 0;if(!confirm("Substituir os dados atuais pelo backup? Os dados atuais ficarão guardados como cópia de segurança."))return;keepPrev();S=norm(o);E={};save();toast("Dados restaurados");render()}catch(e){toast("Backup inválido.")}}
@@ -237,6 +246,38 @@ window.addEventListener("online",function(){doPull()});
 document.addEventListener("visibilitychange",function(){if(document.visibilityState=="visible")doPull()});
 if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+/* ---------- v2: observações por meta e diário de treino ---------- */
+function migrate(o){if(!o.mig)o.mig={};if(!o.notes)o.notes={};if(!o.trn)o.trn=[];if(!o.mig.cardio){o.mig.cardio=1;if(!o.tasks.some(function(t){return /cardio/i.test(t.n)}))o.tasks.push({id:uid(),n:"Cardio",c:today(),a:""})}return o}
+function ntPh(n){return /água|agua/i.test(n)?"Quantos litros? Como foi?":/sono|dormir/i.test(n)?"Horas dormidas, qualidade do sono…":/aliment/i.test(n)?"O que comeu, o que fugiu do plano…":/cardio/i.test(n)?"Tipo, tempo e intensidade…":"Observação"}
+function noteHTML(t,d){return '<input class="nt" data-nt="'+t.id+'" placeholder="'+ntPh(t.n)+'" value="'+esc((S.notes[d]||{})[t.id]||"")+'" autocomplete="off">'}
+function notesHist(){var rows=[];Object.keys(S.notes).sort().reverse().forEach(function(d){Object.keys(S.notes[d]).forEach(function(id){var t=S.tasks.filter(function(x){return x.id==id})[0];if(t&&S.notes[d][id])rows.push({d:d,n:t.n,v:S.notes[d][id]})})});rows=rows.slice(0,20);
+ return '<div class="card"><h3>Observações recentes</h3>'+(rows.length?rows.map(function(r){return '<div class="it"><div class="ib"><b>'+esc(r.n)+"</b><small>"+esc(r.v)+'</small></div><button data-gd="'+r.d+'" style="min-width:64px;font-size:13px">'+lab(r.d)+"</button></div>"}).join(""):'<p class="m">Nenhuma observação ainda. Escreva abaixo de cada tarefa do dia.</p>')+"</div>"}
+var GM=["Peito","Costas","Ombros","Bíceps","Tríceps","Pernas","Glúteos","Abdômen","Cardio","Outro"],T=null,dirty=0,ntm;
+function newT(){return {id:"",d:today(),gm:[],dur:"",ex:[{n:"",s:"",r:"",c:""}],obs:""}}
+function trCount(a,b){var s={};S.sau.forEach(function(r){if(r.k=="Treino"&&inRange(r,a,b))s[r.d]=1});S.trn.forEach(function(r){if(inRange(r,a,b))s[r.d]=1});return Object.keys(s).length}
+function exStr(e){return esc(e.n)+" — "+esc(e.s||"?")+"×"+esc(e.r||"?")+(e.c!==""&&e.c!=null?" · "+f1(e.c)+" kg":"")}
+function lastEx(n,d,id){n=String(n||"").trim().toLowerCase();if(!n)return "";var best=null;S.trn.forEach(function(r){if(r.id==id||r.d>d)return;r.ex.forEach(function(e){if(String(e.n).trim().toLowerCase()==n&&(!best||r.d>=best.d))best={d:r.d,e:e}})});
+ return best?"Última vez ("+lab(best.d)+"): "+(best.e.s||"?")+"×"+(best.e.r||"?")+(best.e.c!==""&&best.e.c!=null?" · "+f1(best.e.c)+" kg":""):""}
+function trnList(){var q=(S.ui.tq||"").toLowerCase(),rows=S.trn.slice().sort(function(a,b){return b.d.localeCompare(a.d)}).filter(function(r){return !q||(r.gm.join(" ")+" "+r.ex.map(function(e){return e.n}).join(" ")+" "+r.obs+" "+r.d+" "+brd(r.d)).toLowerCase().indexOf(q)>=0}).slice(0,40);
+ return rows.length?rows.map(function(r){return '<div class="card"><div class="row" style="align-items:center;flex-wrap:nowrap"><div class="ib"><b>'+brd(r.d)+(r.gm.length?" · "+esc(r.gm.join(", ")):"")+"</b><small>"+(r.dur!==""&&r.dur!=null?f1(r.dur)+" min · ":"")+r.ex.length+' exercício(s)</small></div><button data-te="'+r.id+'" aria-label="Editar" style="flex:0 0 44px;padding:0">✎</button><button data-tx="'+r.id+'" aria-label="Excluir" style="flex:0 0 44px;padding:0">🗑</button></div>'+r.ex.map(function(e){return '<small style="display:block">• '+exStr(e)+"</small>"}).join("")+(r.obs?'<p class="m" style="margin:8px 0 0">'+esc(r.obs)+"</p>":"")+"</div>"}).join(""):'<p class="m">Nenhum treino encontrado.</p>'}
+function vTrn(){if(!T)T=newT();var names={};S.trn.forEach(function(r){r.ex.forEach(function(e){if(e.n)names[e.n]=1})});
+ var o='<div class="card"><h3>'+(T.id?"Editar treino":"Novo treino")+'</h3><label>Data<input type="date" data-t="d" value="'+esc(T.d)+'"></label><label>Grupos musculares</label><div class="row" style="margin-bottom:10px">'+GM.map(function(g){return '<button type="button" data-tg="'+g+'" class="'+(T.gm.indexOf(g)>=0?"pri":"")+'" style="flex:0 0 auto;min-height:44px">'+g+"</button>"}).join("")+"</div>";
+ o+=T.ex.map(function(e,i){var p='data-t="ex.'+i+".";return '<div class="card" style="background:var(--bg)"><label>Exercício '+(i+1)+'<input list="exl" '+p+'n" value="'+esc(e.n)+'" placeholder="Ex.: Supino reto" autocomplete="off"></label><div class="row"><label>Séries<input inputmode="numeric" '+p+'s" value="'+esc(e.s)+'"></label><label>Repetições<input '+p+'r" value="'+esc(e.r)+'" placeholder="10 ou 12/10/8"></label><label>Carga (kg)<input inputmode="decimal" '+p+'c" value="'+esc(e.c)+'"></label></div><small id="lx'+i+'">'+esc(lastEx(e.n,T.d,T.id))+"</small>"+(T.ex.length>1?'<button type="button" data-tr="'+i+'" style="width:100%;margin-top:6px">Remover exercício</button>':"")+"</div>"}).join("");
+ o+='<button type="button" data-ta2="1" style="width:100%;margin-bottom:12px">+ Adicionar exercício</button><label>Duração total (minutos)<input inputmode="numeric" data-t="dur" value="'+esc(T.dur)+'"></label><label>Observações (desempenho, dificuldades, evolução)<textarea class="big" data-t="obs">'+esc(T.obs)+'</textarea></label><div class="row"><button class="pri" data-tsave="1">Salvar treino</button>'+(T.id?'<button data-tcan="1">Cancelar</button>':"")+'</div><datalist id="exl">'+Object.keys(names).map(function(n){return '<option value="'+esc(n)+'">'}).join("")+"</datalist></div>";
+ return o+'<div class="card"><h3>Treinos anteriores</h3><label>Buscar por grupo, exercício ou data<input data-tq="1" value="'+esc(S.ui.tq||"")+'" placeholder="Ex.: peito, supino, 20/11"></label></div><div id="tl">'+trnList()+"</div>"}
+function saveT(){var ex=T.ex.map(function(e){return {n:String(e.n||"").trim(),s:String(e.s==null?"":e.s).trim(),r:String(e.r==null?"":e.r).trim(),c:String(e.c==null?"":e.c).trim()===""?"":num(e.c)}}).filter(function(e){return e.n||e.s||e.r||e.c!==""});
+ if(!T.gm.length&&!ex.length){toast("Informe grupos musculares ou exercícios.");return}
+ if(ex.some(function(e){return !e.n})){toast("Dê um nome a cada exercício.");return}
+ var rec={id:T.id||uid(),d:T.d||today(),gm:T.gm.slice(),dur:String(T.dur==null?"":T.dur).trim()===""?"":num(T.dur),ex:ex,obs:String(T.obs||"").trim()},i=S.trn.findIndex(function(r){return r.id==T.id});
+ if(T.id&&i>=0){var old=S.trn[i];rec.h=(old.h||[]).concat([Object.assign({at:today()},old,{h:undefined})]);S.trn[i]=rec}else S.trn.push(rec);
+ T=null;save();toast("Treino salvo");render(1)}
+function flush(){if(dirty){dirty=0;save()}}
+document.addEventListener("input",function(ev){var t=ev.target,ds=t.dataset||{};
+ if(ds.nt){var dd=S.ui.d||today(),n=S.notes[dd]||(S.notes[dd]={}),v=t.value;if(v.trim())n[ds.nt]=v;else{delete n[ds.nt];if(!Object.keys(n).length)delete S.notes[dd]}dirty=1;clearTimeout(ntm);ntm=setTimeout(flush,600)}
+ if(ds.t&&T){var p=ds.t.split(".");if(p[0]=="ex"){T.ex[+p[1]][p[2]]=t.value;if(p[2]=="n"){var h=$("#lx"+p[1]);if(h)h.textContent=lastEx(t.value,T.d,T.id)}}else T[p[0]]=t.value}
+ if(ds.tq!==undefined){S.ui.tq=t.value;var l=$("#tl");if(l)l.innerHTML=trnList()}});
+window.addEventListener("pagehide",flush);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState=="hidden")flush()});
 window.addEventListener("hashchange",function(){render()});
 load();if(!ok)setTimeout(function(){toast("Armazenamento indisponível: use o backup com frequência.")},500);
 render();setTimeout(doPull,800);
